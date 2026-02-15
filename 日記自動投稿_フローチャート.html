@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日記自動投稿システム フローチャート</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  @page { size: A4; margin: 0; }
+
+  body {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    background: #f0ebe3;
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    background: #fffcf7;
+    padding: 28px 32px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .page::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 8px;
+    background: linear-gradient(90deg, #e8a87c, #d4845e, #c0673e);
+  }
+
+  /* ---- Header ---- */
+  .header {
+    text-align: center;
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #3a2e26;
+    letter-spacing: 2px;
+    position: relative;
+    display: inline-block;
+  }
+  .header h1::after {
+    content: '';
+    position: absolute;
+    bottom: -4px; left: -8px; right: -8px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #d4845e, transparent);
+    border-radius: 2px;
+  }
+  .header .sub {
+    font-size: 11px;
+    color: #8a7a6e;
+    margin-top: 8px;
+    letter-spacing: 1px;
+  }
+
+  /* ---- Flow Container ---- */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+
+  /* ---- Phase Divider ---- */
+  .phase {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 10px;
+  }
+  .phase-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    padding: 4px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    letter-spacing: 1px;
+  }
+  .phase-badge.prep { background: #7b9e6b; }
+  .phase-badge.gen  { background: #c0673e; }
+  .phase-badge.post { background: #4a7c9b; }
+  .phase-line {
+    flex: 1;
+    height: 1px;
+    background: #d6cfc6;
+  }
+  .phase-note {
+    font-size: 10px;
+    color: #9a8e82;
+    white-space: nowrap;
+  }
+
+  /* ---- Step Row ---- */
+  .step-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+  }
+
+  /* Timeline spine */
+  .spine {
+    width: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .spine .dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 3px solid #d4845e;
+    background: #fffcf7;
+    z-index: 2;
+    flex-shrink: 0;
+    margin-top: 14px;
+  }
+  .spine .line {
+    flex: 1;
+    width: 2px;
+    background: #ddd5ca;
+    margin: 0 auto;
+  }
+  .step-row:last-child .spine .line { display: none; }
+
+  .step-row.gen .spine .dot { border-color: #c0673e; }
+  .step-row.post .spine .dot { border-color: #4a7c9b; }
+  .step-row.prep .spine .dot { border-color: #7b9e6b; }
+  .step-row.done .spine .dot {
+    border-color: #c0673e;
+    background: #c0673e;
+  }
+
+  /* Card */
+  .card {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #e8e0d6;
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 5px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: box-shadow .2s;
+    min-height: 48px;
+  }
+  .card:hover {
+    box-shadow: 0 3px 12px rgba(0,0,0,.06);
+  }
+
+  .card-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    width: 36px;
+    text-align: center;
+    line-height: 1;
+  }
+  .card-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #3a2e26;
+    line-height: 1.3;
+  }
+  .card-desc {
+    font-size: 10.5px;
+    color: #8a7a6e;
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .card-who {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .who-you    { background: #fef3e2; color: #c0673e; }
+  .who-gas    { background: #fde8e0; color: #b84e2f; }
+  .who-python { background: #e0eef5; color: #3a6d8c; }
+  .who-auto   { background: #e8f0e4; color: #5a7e4c; }
+
+  /* ---- Arrow between phases ---- */
+  .arrow-down {
+    display: flex;
+    justify-content: center;
+    padding: 2px 0;
+  }
+  .arrow-down svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* ---- Legend ---- */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e8e0d6;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: #6b5e52;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  /* ---- Footer ---- */
+  .footer {
+    text-align: center;
+    margin-top: 14px;
+    font-size: 9px;
+    color: #b0a598;
+    letter-spacing: 0.5px;
+  }
+
+  /* ---- Connector box ---- */
+  .connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 8px 0;
+    padding: 6px 0;
+  }
+  .connector-line {
+    width: 40px;
+    height: 1px;
+    background: #d6cfc6;
+  }
+  .connector-text {
+    font-size: 10px;
+    font-weight: 700;
+    color: #c0673e;
+    background: #fef7f0;
+    padding: 3px 12px;
+    border-radius: 12px;
+    border: 1px dashed #e0c4ab;
+    white-space: nowrap;
+  }
+
+  @media print {
+    body { padding: 0; background: #fff; }
+    .page { box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="header">
+    <h1>📝 日記自動投稿システム</h1>
+    <div class="sub">CityHeaven 日記の自動生成 → 自動投稿 フローチャート</div>
+  </div>
+
+  <!-- ===== PHASE A: 準備 ===== -->
+  <div class="phase">
+    <span class="phase-badge prep">Phase 0</span>
+    <span class="phase-note">準備（1日1回）</span>
+    <div class="phase-line"></div>
+  </div>
+
+  <div class="flow">
+    <div class="step-row prep">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">📋</div>
+        <div class="card-body">
+          <div class="card-title">シフトデータ入力</div>
+          <div class="card-desc">Excelアップロード or ミテネマスターで入力</div>
+        </div>
+        <div class="card-who who-you">手動</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PHASE A: 日記生成 ===== -->
+  <div class="phase">
+    <span class="phase-badge gen">Phase A</span>
+    <span class="phase-note">日記生成（GAS）</span>
+    <div class="phase-line"></div>
+    <span class="phase-note">朝1回</span>
+  </div>
+
+  <div class="flow">
+    <div class="step-row gen">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">▶️</div>
+        <div class="card-body">
+          <div class="card-title">generateAllDiaries 実行</div>
+          <div class="card-desc">手動実行 or 毎朝トリガーで自動実行</div>
+        </div>
+        <div class="card-who who-gas">GAS</div>
+      </div>
+    </div>
+
+    <div class="step-row gen">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">👤</div>
+        <div class="card-body">
+          <div class="card-title">対象キャスト特定</div>
+          <div class="card-desc">キャストプロンプト「日記あり」× シフトデータ → 投稿回数・時刻・種類を自動決定</div>
+        </div>
+        <div class="card-who who-auto">自動</div>
+      </div>
+    </div>
+
+    <div class="step-row gen">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">🤖</div>
+        <div class="card-body">
+          <div class="card-title">Gemini AI で日記生成</div>
+          <div class="card-desc">キャストごとのプロンプト + お題 + ネタかぶり防止情報 → タイトル＆本文を生成</div>
+        </div>
+        <div class="card-who who-auto">自動</div>
+      </div>
+    </div>
+
+    <div class="step-row gen">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">💾</div>
+        <div class="card-body">
+          <div class="card-title">日記出力シートに保存</div>
+          <div class="card-desc">全キャスト分を一括保存（ステータス: pending）→ 完了メール通知</div>
+        </div>
+        <div class="card-who who-auto">自動</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 目視チェック ===== -->
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-text">👀 目視チェック（任意） シートで内容確認・修正可能</div>
+    <div class="connector-line"></div>
+  </div>
+
+  <!-- ===== PHASE B: 投稿 ===== -->
+  <div class="phase">
+    <span class="phase-badge post">Phase B</span>
+    <span class="phase-note">自動投稿（Python）</span>
+    <div class="phase-line"></div>
+    <span class="phase-note">1日中常駐</span>
+  </div>
+
+  <div class="flow">
+    <div class="step-row post">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">🐍</div>
+        <div class="card-body">
+          <div class="card-title">diary_poster.py 起動</div>
+          <div class="card-desc">日記出力シートからpending全件を読み込み → 投稿スケジュール作成</div>
+        </div>
+        <div class="card-who who-you">手動起動</div>
+      </div>
+    </div>
+
+    <div class="step-row post">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">⏰</div>
+        <div class="card-body">
+          <div class="card-title">投稿時刻まで待機</div>
+          <div class="card-desc">60秒ごとに現在時刻をチェック → 投稿予定時刻になったら実行</div>
+        </div>
+        <div class="card-who who-auto">自動</div>
+      </div>
+    </div>
+
+    <div class="step-row post">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">🌐</div>
+        <div class="card-body">
+          <div class="card-title">CityHeavenに自動投稿</div>
+          <div class="card-desc">ログイン → タイトル・本文・画像・公開範囲を入力 → プレビュー → 投稿</div>
+        </div>
+        <div class="card-who who-python">Python</div>
+      </div>
+    </div>
+
+    <div class="step-row post">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card">
+        <div class="card-icon">✅</div>
+        <div class="card-body">
+          <div class="card-title">結果をシートに記録</div>
+          <div class="card-desc">ステータス pending → posted に更新 / 使用画像・投稿時刻を記録</div>
+        </div>
+        <div class="card-who who-auto">自動</div>
+      </div>
+    </div>
+
+    <div class="step-row done">
+      <div class="spine"><div class="dot"></div><div class="line"></div></div>
+      <div class="card" style="background:#fef7f0; border-color:#e0c4ab;">
+        <div class="card-icon">🎉</div>
+        <div class="card-body">
+          <div class="card-title">全件投稿完了 → 自動終了</div>
+          <div class="card-desc">完了レポート表示 → Pythonが自動で終了</div>
+        </div>
+        <div class="card-who who-auto">自動</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 翌朝 ===== -->
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-text">🌅 翌朝のGAS実行時 → 日記履歴に移動・月次集計に加算・シートクリア</div>
+    <div class="connector-line"></div>
+  </div>
+
+  <!-- ===== Legend ===== -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#fef3e2; border:1px solid #c0673e;"></div>
+      手動作業
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#fde8e0; border:1px solid #b84e2f;"></div>
+      GAS（Google Apps Script）
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#e0eef5; border:1px solid #3a6d8c;"></div>
+      Python（Selenium）
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:#e8f0e4; border:1px solid #5a7e4c;"></div>
+      自動処理
+    </div>
+  </div>
+
+  <div class="footer">日記自動投稿システム v3.6 ─ Compana</div>
+
+</div>
+
+</body>
+</html>
